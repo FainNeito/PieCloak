@@ -6,14 +6,10 @@ import games.cubi.locatables.implementations.ImmutableSpatialImpl;
 import games.cubi.locatables.implementations.ThreadSafeLocatable;
 import games.cubi.raycastedantiesp.core.view.BlockView;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.DynamicTest;
 
 import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,11 +30,12 @@ class RaycastTerminationTest {
                 new RaycastUtil.Settings(3, 24, 48, false, boundedEmptyView(), null)));
     }
 
-    @TestFactory
-    Stream<DynamicTest> integerEndpointsTerminateInEveryOctantAndMajorAxis() {
-        return IntStream.range(0, 24).mapToObj(index -> DynamicTest.dynamicTest(
-                "axis " + index / 8 + ", signs " + index % 8,
-                () -> assertTrue(integerEndpointVisible(index / 8, index % 8))));
+    @Test
+    void integerEndpointsTerminateInEveryOctantAndMajorAxis() {
+        for (int index = 0; index < 24; index++) {
+            assertTrue(integerEndpointVisible(index / 8, index % 8),
+                    "axis " + index / 8 + ", signs " + index % 8);
+        }
     }
 
     private static boolean integerEndpointVisible(int axis, int signs) {
@@ -67,11 +64,12 @@ class RaycastTerminationTest {
         assertEquals(1, xReads.get());
     }
 
-    @TestFactory
-    Stream<DynamicTest> nonFiniteEndpointsFailClosedWithoutTraversal() {
-        return Stream.of(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
-                .map(invalid -> DynamicTest.dynamicTest("endpoint " + invalid,
-                        () -> assertFalse(nonFiniteEndpointVisible(invalid))));
+    @Test
+    void nonFiniteEndpointsFailClosedWithoutTraversal() {
+        double[] invalidEndpoints = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        for (double invalid : invalidEndpoints) {
+            assertFalse(nonFiniteEndpointVisible(invalid), "endpoint " + invalid);
+        }
     }
 
     private static boolean nonFiniteEndpointVisible(double invalid) {
