@@ -42,8 +42,8 @@ public final class RaycastUtil {
     public static boolean raycast(Locatable start, Spatial end, Settings settings, float yOffsetEnd) {
         // The viewer location is updated concurrently. Geometry and traversal must use
         // the same coordinates, even if the viewer moves while this ray is checked.
-        start = new ImmutableLocatableImpl(start.world(), start.x(), start.y(), start.z());
-        RayGeometry geometry = RayGeometry.between(start, end, yOffsetEnd);
+        Locatable origin = new ImmutableLocatableImpl(start.world(), start.x(), start.y(), start.z());
+        RayGeometry geometry = RayGeometry.between(origin, end, yOffsetEnd);
         if (!Double.isFinite(geometry.distance())) {
             return false;
         }
@@ -54,7 +54,7 @@ public final class RaycastUtil {
             return false;
         }
         validateDebugContext(settings);
-        return new VoxelTraversal(start, geometry, settings).hasLineOfSight();
+        return new VoxelTraversal(origin, geometry, settings).hasLineOfSight();
     }
 
     private static void validateDebugContext(Settings settings) {
@@ -162,10 +162,11 @@ public final class RaycastUtil {
             long remainingSteps = Math.abs((long) targetX - x)
                     + Math.abs((long) targetY - y) + Math.abs((long) targetZ - z);
             while (!atTarget()) {
-                if (remainingSteps-- == 0) {
+                if (remainingSteps == 0) {
                     // Fail closed if malformed geometry ever prevents forward progress.
                     return false;
                 }
+                remainingSteps--;
                 advanceToNextVoxel();
                 if (atTarget()) {
                     return true;
