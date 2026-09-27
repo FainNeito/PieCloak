@@ -38,18 +38,18 @@ class RaycastTerminationTest {
     Stream<DynamicTest> integerEndpointsTerminateInEveryOctantAndMajorAxis() {
         return IntStream.range(0, 24).mapToObj(index -> DynamicTest.dynamicTest(
                 "axis " + index / 8 + ", signs " + index % 8,
-                () -> assertIntegerEndpoint(index / 8, index % 8)));
+                () -> assertTrue(integerEndpointVisible(index / 8, index % 8))));
     }
 
-    private static void assertIntegerEndpoint(int axis, int signs) {
+    private static boolean integerEndpointVisible(int axis, int signs) {
         Locatable start = new ImmutableLocatableImpl(UUID.randomUUID(), 0.5, 0.5, 0.5);
         double[] end = new double[3];
         for (int component = 0; component < 3; component++) {
             end[component] = (component == axis ? 30 : 1)
                     * ((signs & (1 << component)) == 0 ? -1 : 1);
         }
-        assertTrue(RaycastUtil.raycast(start, new ImmutableSpatialImpl(end[0], end[1], end[2]),
-                new RaycastUtil.Settings(3, 24, 48, false, boundedEmptyView(), null)));
+        return RaycastUtil.raycast(start, new ImmutableSpatialImpl(end[0], end[1], end[2]),
+                new RaycastUtil.Settings(3, 24, 48, false, boundedEmptyView(), null));
     }
 
     @Test
@@ -71,13 +71,13 @@ class RaycastTerminationTest {
     Stream<DynamicTest> nonFiniteEndpointsFailClosedWithoutTraversal() {
         return Stream.of(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)
                 .map(invalid -> DynamicTest.dynamicTest("endpoint " + invalid,
-                        () -> assertNonFiniteEndpoint(invalid)));
+                        () -> assertFalse(nonFiniteEndpointVisible(invalid))));
     }
 
-    private static void assertNonFiniteEndpoint(double invalid) {
+    private static boolean nonFiniteEndpointVisible(double invalid) {
         Locatable start = new ImmutableLocatableImpl(UUID.randomUUID(), 0.5, 0.5, 0.5);
-        assertFalse(RaycastUtil.raycast(start, new ImmutableSpatialImpl(invalid, 1, 1),
-                new RaycastUtil.Settings(3, 24, 48, false, boundedEmptyView(), null)));
+        return RaycastUtil.raycast(start, new ImmutableSpatialImpl(invalid, 1, 1),
+                new RaycastUtil.Settings(3, 24, 48, false, boundedEmptyView(), null));
     }
 
     private static BlockView boundedEmptyView() {
