@@ -25,6 +25,14 @@ Use a normal client plus a pie-chart/base-finding client or packet capture where
 - Non-allowlisted entities and block entities behave normally.
 - Java and Bedrock players through Geyser/Floodgate observe the same managed visibility outcomes.
 
+## Skip-region exit and raycast progress regressions
+
+- With player checks disabled and `piecloak-skip: allow` inside a region, repeatedly cross its boundary with two players. Both player bodies and nametags must remain visible outside the region.
+- Repeat with entity checks disabled; tracked entities must not be stranded hidden on exemption exit. With checks enabled, normal occlusion must still apply outside the region.
+- Outside the exempt region, approach protected shulkers and villagers, including targets whose ray endpoints lie on integer coordinates in mixed positive/negative directions. Their visibility must keep updating; diagnostic completed-tick counts must continue increasing.
+- Repeat after teleport, relog, chunk reload, and on the supported Java and Geyser/Floodgate client paths. These are manual acceptance checks, not implied by passing unit tests.
+- When replacing an affected build, perform a full server restart: a worker already stuck in the old traversal cannot be repaired by a configuration reload.
+
 ## Target Filter
 
 - `villager` and `minecraft:villager` config entries both resolve to the same target.

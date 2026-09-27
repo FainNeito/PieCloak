@@ -4,6 +4,7 @@ import games.cubi.locatables.api.BlockSpatial;
 import games.cubi.locatables.api.Locatable;
 import games.cubi.locatables.api.Spatial;
 import games.cubi.locatables.implementations.ImmutableSpatialImpl;
+import games.cubi.locatables.implementations.ImmutableLocatableImpl;
 import games.cubi.logs.Logger;
 import games.cubi.raycastedantiesp.core.view.BlockView;
 
@@ -39,7 +40,13 @@ public final class RaycastUtil {
      * block-entity visibility rays above or below the actual block.
      */
     public static boolean raycast(Locatable start, Spatial end, Settings settings, float yOffsetEnd) {
+        // The viewer location is updated concurrently. Geometry and traversal must use
+        // the same coordinates, even if the viewer moves while this ray is checked.
+        start = new ImmutableLocatableImpl(start.world(), start.x(), start.y(), start.z());
         RayGeometry geometry = RayGeometry.between(start, end, yOffsetEnd);
+        if (!Double.isFinite(geometry.distance())) {
+            return false;
+        }
         if (geometry.distance() <= settings.alwaysShowRadius()) {
             return true;
         }
@@ -152,7 +159,13 @@ public final class RaycastUtil {
         }
 
         private boolean hasLineOfSight() {
+            long remainingSteps = Math.abs((long) targetX - x)
+                    + Math.abs((long) targetY - y) + Math.abs((long) targetZ - z);
             while (!atTarget()) {
+                if (remainingSteps-- == 0) {
+                    // Fail closed if malformed geometry ever prevents forward progress.
+                    return false;
+                }
                 advanceToNextVoxel();
                 if (atTarget()) {
                     return true;
@@ -165,16 +178,22 @@ public final class RaycastUtil {
         }
 
         private void advanceToNextVoxel() {
+            // A negative-direction ray ending on an integer boundary reaches that
+            // axis's target voxel before t=1. Do not step out of it while another
+            // axis is still approaching the endpoint (including corner ties).
+            if (x == targetX) tMaxX = Double.POSITIVE_INFINITY;
+            if (y == targetY) tMaxY = Double.POSITIVE_INFINITY;
+            if (z == targetZ) tMaxZ = Double.POSITIVE_INFINITY;
             double nextBoundary = Math.min(tMaxX, Math.min(tMaxY, tMaxZ));
-            if (tMaxX <= nextBoundary + AXIS_TIE_EPSILON) {
+            if (x != targetX && tMaxX <= nextBoundary + AXIS_TIE_EPSILON) {
                 x += stepX;
                 tMaxX += tDeltaX;
             }
-            if (tMaxY <= nextBoundary + AXIS_TIE_EPSILON) {
+            if (y != targetY && tMaxY <= nextBoundary + AXIS_TIE_EPSILON) {
                 y += stepY;
                 tMaxY += tDeltaY;
             }
-            if (tMaxZ <= nextBoundary + AXIS_TIE_EPSILON) {
+            if (z != targetZ && tMaxZ <= nextBoundary + AXIS_TIE_EPSILON) {
                 z += stepZ;
                 tMaxZ += tDeltaZ;
             }
