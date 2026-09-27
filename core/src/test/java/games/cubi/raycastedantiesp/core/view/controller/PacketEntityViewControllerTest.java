@@ -1,6 +1,8 @@
 package games.cubi.raycastedantiesp.core.view.controller;
 
 import games.cubi.raycastedantiesp.core.entity.EntityBypassRegistry;
+import games.cubi.raycastedantiesp.core.config.raycast.PlayerConfig;
+import games.cubi.raycastedantiesp.core.config.raycast.EntityConfig;
 import games.cubi.raycastedantiesp.core.players.PlayerData;
 import games.cubi.raycastedantiesp.core.players.PlayerRegistry;
 import games.cubi.raycastedantiesp.core.policy.VisibilityExemptionPolicy;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.spongepowered.configurate.BasicConfigurationNode;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -25,7 +28,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -56,7 +58,8 @@ class PacketEntityViewControllerTest {
     }
 
     @BeforeEach
-    void clearControllerState() {
+    void clearControllerState() throws Exception {
+        configureChecks(false, true);
         CONTROLLER.directlyShownEntityIDs.clear();
         CONTROLLER.directlyHiddenEntityIDs.clear();
         CONTROLLER.replacementPassengerPackets.clear();
@@ -183,6 +186,87 @@ class PacketEntityViewControllerTest {
         assertFalse(entity.visible());
         assertFalse(entity.clientVisible());
         assertEquals(List.of(2), CONTROLLER.directlyHiddenEntityIDs);
+    }
+
+    @Test
+    void disabledPlayerChecksPreservePlayersAcrossRepeatedBoundaryCrossings() throws Exception {
+        assertBoundaryMovements(true, false);
+    }
+
+    @Test
+    void disabledEntityChecksPreserveEntitiesAcrossRepeatedBoundaryCrossings() throws Exception {
+        configureChecks(true, false);
+        assertBoundaryMovements(false, false);
+    }
+
+    @Test
+    void enabledPlayerChecksStillHidePlayersAtBoundary() throws Exception {
+        configureChecks(true, false);
+        assertBoundaryMovements(true, true);
+    }
+
+    @Test
+    void enabledEntityChecksStillHideEntitiesAtBoundary() throws Exception {
+        assertBoundaryMovements(false, true);
+    }
+
+    private void assertBoundaryMovements(boolean playerView, boolean checksEnabled) {
+        UUID world = UUID.randomUUID();
+        PlayerData playerData = registerPlayer(world);
+        playerData.updateOwnLocation(world, 0, 64, 0);
+        HarnessEntity target = new HarnessEntity(playerData, 2, UUID.randomUUID(), true);
+        target.setClientVisible(true);
+        @SuppressWarnings("unchecked")
+        EntityView<NettyEntity<?>> view = (EntityView<NettyEntity<?>>) (EntityView<?>)
+                (playerView ? playerData.playerView() : playerData.entityView());
+        view.insertEntity(world, target);
+        VISIBILITY_POLICY.exemptAtOrAboveX(10);
+        CONTROLLER.movementEntityID = 2;
+        for (int cycle = 0; cycle < 100; cycle++) {
+            for (int movement = 0; movement < 4; movement++) {
+                target.setPosition(10, 64, 0);
+                move(movement, playerData);
+                assertTrue(target.visibilityExempt());
+                assertTrue(target.visible());
+                assertTrue(target.clientVisible());
+                CONTROLLER.directlyHiddenEntityIDs.clear();
+                CONTROLLER.directlyShownEntityIDs.clear();
+                target.setPosition(0, 64, 0);
+                assertEquals(checksEnabled, move(movement, playerData), "movement cancellation type " + movement);
+                assertFalse(target.visibilityExempt());
+                assertEquals(!checksEnabled, target.visible());
+                assertEquals(!checksEnabled, target.clientVisible());
+                assertEquals(checksEnabled ? List.of(2) : List.of(), CONTROLLER.directlyHiddenEntityIDs);
+                assertTrue(CONTROLLER.directlyShownEntityIDs.isEmpty(), "visible players must not be respawned");
+            }
+        }
+    }
+
+    private boolean move(int movement, PlayerData playerData) {
+        return switch (movement) {
+            case 0 -> CONTROLLER.handleRelativeMove(null, playerData, 20);
+            case 1 -> CONTROLLER.handleRelativeMoveAndRotation(null, playerData, 20);
+            case 2 -> CONTROLLER.handleTeleport(null, playerData, 20);
+            case 3 -> CONTROLLER.handlePositionSync(null, playerData, 20);
+            default -> throw new IllegalArgumentException("Unknown movement " + movement);
+        };
+    }
+
+    private void configureChecks(boolean playersEnabled, boolean entitiesEnabled) throws Exception {
+        BasicConfigurationNode node = BasicConfigurationNode.root();
+        node.node("enabled").set(playersEnabled);
+        node.node("hide-sounds-when-hidden").set(false);
+        node.node("max-occluding-count").set(3);
+        node.node("always-show-radius").set(24);
+        node.node("raycast-radius").set(48);
+        node.node("hide-on-spawn-distance").set(0);
+        node.node("visible-recheck-interval-ticks").set(10);
+        node.node("keep-client-entity-when-hidden").set(false);
+        node.node("only-check-sneaking").set(false);
+        CONTROLLER.playerConfig = PlayerConfig.load(node, "checks.player");
+        node.node("enabled").set(entitiesEnabled);
+        node.node("excluded-types").set(List.of());
+        CONTROLLER.entityConfig = EntityConfig.load(node, "checks.entity");
     }
 
     @Test
@@ -445,17 +529,17 @@ class PacketEntityViewControllerTest {
 
         @Override
         protected int processRelativeMoveAndRotationPacket(Void packet, PlayerData playerData, int currentTick) {
-            return -1;
+            return movementEntityID;
         }
 
         @Override
         protected int processTeleportPacket(Void packet, PlayerData playerData, int currentTick) {
-            return -1;
+            return movementEntityID;
         }
 
         @Override
         protected int processPositionSyncPacket(Void packet, PlayerData playerData, int currentTick) {
-            return -1;
+            return movementEntityID;
         }
 
         @Override

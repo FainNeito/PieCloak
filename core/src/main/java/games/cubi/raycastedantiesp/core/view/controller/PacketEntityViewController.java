@@ -254,6 +254,12 @@ public abstract class PacketEntityViewController<P> {
         if (!wasExempt) {
             return cancelIfEnabledAndHidden(entityID, playerData);
         }
+        EntityView<?> view = playerData.viewFromEntityID(entityID);
+        if (view == null || !getCorrectConfig(view).enabled()) {
+            // Disabled checks never run the async reveal pass. Hiding here would
+            // strand tracked players (or entities) when they leave a skip region.
+            return false;
+        }
         applyDirectVisibility(playerData, entity, false, currentTick);
         // Fail closed at the boundary. The async engine evaluates normal visibility next tick.
         return true;
