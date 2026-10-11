@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.configurate.BasicConfigurationNode;
 
-import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -89,7 +89,7 @@ class BoatPassengerVisibilityTest {
 
     private static Map<Integer, EntityViewTransition.Type> drainTransitions(
             PacketEventsEntityView view, int epoch) {
-        Map<Integer, EntityViewTransition.Type> transitions = new HashMap<>();
+        Map<Integer, EntityViewTransition.Type> transitions = new TreeMap<>();
         view.flushPendingTransitions();
         view.drainTransitions((type, entity, actualEpoch) -> {
             assertEquals(epoch, actualEpoch);
