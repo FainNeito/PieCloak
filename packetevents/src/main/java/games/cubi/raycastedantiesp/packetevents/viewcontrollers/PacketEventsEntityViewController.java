@@ -438,7 +438,7 @@ public abstract class PacketEventsEntityViewController extends PacketEntityViewC
         if (isBypassed(entityID)) {
             return true;
         }
-        if (shouldTrackRelationshipSupport(isPlayer, isMinecartLike(packet.getEntityType()))) {
+        if (shouldTrackRelationshipSupport(isPlayer, isPassengerVehicle(packet.getEntityType()))) {
             EntityBypassRegistry.addRelationshipSupportEntity(entityID);
             return false;
         }
@@ -459,12 +459,15 @@ public abstract class PacketEventsEntityViewController extends PacketEntityViewC
         return EntityBypassRegistry.isBypassed(entityID);
     }
 
-    static boolean isMinecartLike(EntityType entityType) {
-        return entityType != null && entityType.isInstanceOf(EntityTypes.MINECART_ABSTRACT);
+    static boolean isPassengerVehicle(EntityType entityType) {
+        // Track excluded vehicles so their movement can update managed passengers.
+        // PacketEvents uses BOAT as the parent for wood boats and bamboo rafts.
+        return entityType != null && (entityType.isInstanceOf(EntityTypes.MINECART_ABSTRACT)
+                || entityType.isInstanceOf(EntityTypes.BOAT));
     }
 
-    static boolean shouldTrackRelationshipSupport(boolean isPlayer, boolean minecartLike) {
-        return !isPlayer && minecartLike;
+    static boolean shouldTrackRelationshipSupport(boolean isPlayer, boolean passengerVehicle) {
+        return !isPlayer && passengerVehicle;
     }
 
     protected NettyEntity<?> createSelfEntity(PlayerData ownData, int entityID, UUID playerUUID) {

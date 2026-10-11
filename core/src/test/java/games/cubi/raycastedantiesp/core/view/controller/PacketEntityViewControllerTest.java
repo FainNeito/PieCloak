@@ -6,6 +6,8 @@ import games.cubi.raycastedantiesp.core.config.raycast.EntityConfig;
 import games.cubi.raycastedantiesp.core.players.PlayerData;
 import games.cubi.raycastedantiesp.core.players.PlayerRegistry;
 import games.cubi.raycastedantiesp.core.policy.VisibilityExemptionPolicy;
+import games.cubi.raycastedantiesp.core.raycast.RaycastUtil;
+import games.cubi.locatables.implementations.ImmutableLocatableImpl;
 import games.cubi.raycastedantiesp.core.tracked.NettyEntity;
 import games.cubi.raycastedantiesp.core.tracked.TrackedEntity;
 import games.cubi.raycastedantiesp.core.utils.Clearable;
@@ -31,6 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PacketEntityViewControllerTest {
@@ -74,6 +78,70 @@ class PacketEntityViewControllerTest {
         }
         registeredPlayers.clear();
         EntityBypassRegistry.reset();
+    }
+
+    @Test
+    void mountedPassengerVisibilityFollowsVehicleRelativeMovesAndTeleports() {
+        UUID world = UUID.randomUUID();
+        PlayerData playerData = registerPlayer(world);
+        HarnessEntity vehicle = insertPassenger(playerData, world, 20, true, true);
+        HarnessEntity passenger = insertPassenger(playerData, world, 2, false, false);
+        EntityBypassRegistry.addRelationshipSupportEntity(20);
+        vehicle.setPosition(100, 64, 0);
+        passenger.setPosition(100, 64, 0);
+        CONTROLLER.handleEntityPassengers(20, new int[]{2}, playerData, 17);
+        var viewer = new ImmutableLocatableImpl(world, 0, 64, 0);
+        var settings = new RaycastUtil.Settings(3, 24, 48, false, null, null);
+        assertFalse(RaycastUtil.raycast(viewer, passenger, settings));
+        assertFalse(passenger.visible(), "mounting must not reveal an occluded passenger");
+        assertSame(vehicle, passenger.vehicleEntity());
+
+        vehicle.add(-90, 0, 0);
+
+        assertEquals(10, passenger.x());
+        assertEquals(64, passenger.y());
+        assertTrue(RaycastUtil.raycast(viewer, passenger, settings),
+                "the mounted passenger must enter the always-visible radius with its boat");
+        vehicle.setPosition(120, 70, 5);
+        assertEquals(120, passenger.x());
+        assertEquals(70, passenger.y());
+        assertEquals(5, passenger.z());
+        assertFalse(RaycastUtil.raycast(viewer, passenger, settings));
+    }
+
+    @Test
+    void dismountStopsOldVehicleFromMovingPassenger() {
+        UUID world = UUID.randomUUID();
+        PlayerData playerData = registerPlayer(world);
+        HarnessEntity vehicle = insertPassenger(playerData, world, 20, true, true);
+        HarnessEntity passenger = insertPassenger(playerData, world, 2, true, true);
+        EntityBypassRegistry.addRelationshipSupportEntity(20);
+        CONTROLLER.handleEntityPassengers(20, new int[]{2}, playerData, 17);
+        vehicle.setPosition(10, 64, 0);
+
+        CONTROLLER.handleEntityPassengers(20, new int[0], playerData, 18);
+        vehicle.add(40, 0, 0);
+
+        assertEquals(10, passenger.x());
+        assertEquals(NettyEntity.NO_VEHICLE, passenger.vehicleID());
+        assertNull(passenger.vehicleEntity());
+        assertArrayEquals(new int[0], vehicle.passengerIDs());
+    }
+
+    @Test
+    void destroyedSupportVehicleClearsMountedPassengerReferences() {
+        UUID world = UUID.randomUUID();
+        PlayerData playerData = registerPlayer(world);
+        HarnessEntity vehicle = insertPassenger(playerData, world, 20, true, true);
+        HarnessEntity passenger = insertPassenger(playerData, world, 2, true, true);
+        EntityBypassRegistry.addRelationshipSupportEntity(20);
+        CONTROLLER.handleEntityPassengers(20, new int[]{2}, playerData, 17);
+
+        CONTROLLER.handleDestroyEntities(new int[]{20}, playerData, 18);
+
+        assertEquals(NettyEntity.NO_VEHICLE, passenger.vehicleID());
+        assertNull(passenger.vehicleEntity());
+        assertNull(playerData.entityFromID(20));
     }
 
     @Test

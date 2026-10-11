@@ -8,11 +8,18 @@
 
 package games.cubi.raycastedantiesp.packetevents.viewcontrollers;
 
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.PacketEventsAPI;
+import com.github.retrooper.packetevents.manager.server.ServerManager;
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import games.cubi.raycastedantiesp.core.view.EntityViewTransition;
 import games.cubi.raycastedantiesp.packetevents.tracked.PacketEventsEntity;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,6 +34,45 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PacketEventsEntityViewControllerTest {
+    @BeforeAll
+    static void initialiseEntityTypeRegistry() {
+        PacketEvents.setAPI(new EntityTypeTestAPI());
+    }
+
+    private static final class EntityTypeTestAPI extends PacketEventsAPI<Object> {
+        @Override public void load() {}
+        @Override public boolean isLoaded() { return true; }
+        @Override public void init() {}
+        @Override public boolean isInitialized() { return true; }
+        @Override public void terminate() {}
+        @Override public boolean isTerminated() { return false; }
+        @Override public Object getPlugin() { return this; }
+        @Override public ServerManager getServerManager() { return () -> ServerVersion.V_1_21_11; }
+        @Override public com.github.retrooper.packetevents.manager.protocol.ProtocolManager getProtocolManager() { return null; }
+        @Override public com.github.retrooper.packetevents.manager.player.PlayerManager getPlayerManager() { return null; }
+        @Override public com.github.retrooper.packetevents.netty.NettyManager getNettyManager() { return null; }
+        @Override public com.github.retrooper.packetevents.injector.ChannelInjector getInjector() { return null; }
+    }
+
+    @Test
+    void allBoatAndRaftVariantsMustUsePassengerPositionTracking() {
+        List<EntityType> boats = List.of(
+                EntityTypes.BOAT, EntityTypes.CHEST_BOAT,
+                EntityTypes.ACACIA_BOAT, EntityTypes.ACACIA_CHEST_BOAT,
+                EntityTypes.BAMBOO_RAFT, EntityTypes.BAMBOO_CHEST_RAFT,
+                EntityTypes.BIRCH_BOAT, EntityTypes.BIRCH_CHEST_BOAT,
+                EntityTypes.CHERRY_BOAT, EntityTypes.CHERRY_CHEST_BOAT,
+                EntityTypes.DARK_OAK_BOAT, EntityTypes.DARK_OAK_CHEST_BOAT,
+                EntityTypes.JUNGLE_BOAT, EntityTypes.JUNGLE_CHEST_BOAT,
+                EntityTypes.MANGROVE_BOAT, EntityTypes.MANGROVE_CHEST_BOAT,
+                EntityTypes.OAK_BOAT, EntityTypes.OAK_CHEST_BOAT,
+                EntityTypes.PALE_OAK_BOAT, EntityTypes.PALE_OAK_CHEST_BOAT,
+                EntityTypes.SPRUCE_BOAT, EntityTypes.SPRUCE_CHEST_BOAT);
+        for (EntityType boat : boats) {
+            assertTrue(PacketEventsEntityViewController.isPassengerVehicle(boat), boat.getName().toString());
+        }
+    }
+
     @Test
     void bypassViewersSkipManagedPacketHandling() {
         assertFalse(PacketEventsEntityViewController.shouldProcessManagedPackets(true));
@@ -44,7 +90,13 @@ class PacketEventsEntityViewControllerTest {
     }
 
     @Test
-    void minecartSupportClassificationExcludesPlayersAndNonMinecarts() {
+    void passengerVehicleClassificationPreservesMinecartsAndExcludesUnrelatedEntities() {
+        assertTrue(PacketEventsEntityViewController.isPassengerVehicle(EntityTypes.MINECART));
+        assertTrue(PacketEventsEntityViewController.isPassengerVehicle(EntityTypes.CHEST_MINECART));
+        assertFalse(PacketEventsEntityViewController.isPassengerVehicle(EntityTypes.VILLAGER));
+        assertFalse(PacketEventsEntityViewController.isPassengerVehicle(EntityTypes.PLAYER));
+        assertFalse(PacketEventsEntityViewController.isPassengerVehicle(EntityTypes.HORSE));
+        assertFalse(PacketEventsEntityViewController.isPassengerVehicle(null));
         assertTrue(PacketEventsEntityViewController.shouldTrackRelationshipSupport(false, true));
         assertFalse(PacketEventsEntityViewController.shouldTrackRelationshipSupport(true, true));
         assertFalse(PacketEventsEntityViewController.shouldTrackRelationshipSupport(false, false));

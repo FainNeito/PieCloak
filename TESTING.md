@@ -63,6 +63,8 @@ Use a normal client plus a pie-chart/base-finding client or packet capture where
 - Join and relog beside an allowlisted iron golem inside `always-show-radius`; it must be visible immediately.
 - Grant `raycastedantiesp.bypass`, relog, and verify all managed entities remain visible and continue moving.
 - Move a villager in a minecart across visible and hidden boundaries; both must hide and show together.
+- Repeat with ordinary boats, chest boats, bamboo rafts and chest rafts. Move the mounted villager from beyond the raycast radius into the always-visible radius; it must reappear without relogging or breaking its vehicle.
+- Repeat boat movement, teleport, empty passenger list, boat destruction and reconnect for Java and Geyser/Floodgate viewers. Verify hidden passengers remain filtered and visible passengers are mounted after SHOW replay.
 - Dismount the villager with an empty `SET_PASSENGERS`; the minecart and villager must resume independent visibility.
 - Destroy the minecart while mounted, then repeat by removing the passenger first; neither case may leave stale visibility.
 - Repeat at least 100 hide/show cycles and confirm replay state and heap usage remain bounded.
