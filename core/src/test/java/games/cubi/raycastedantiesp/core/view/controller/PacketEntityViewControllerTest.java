@@ -132,7 +132,7 @@ class PacketEntityViewControllerTest {
     void destroyedSupportVehicleClearsMountedPassengerReferences() {
         UUID world = UUID.randomUUID();
         PlayerData playerData = registerPlayer(world);
-        HarnessEntity vehicle = insertPassenger(playerData, world, 20, true, true);
+        insertPassenger(playerData, world, 20, true, true);
         HarnessEntity passenger = insertPassenger(playerData, world, 2, true, true);
         EntityBypassRegistry.addRelationshipSupportEntity(20);
         CONTROLLER.handleEntityPassengers(20, new int[]{2}, playerData, 17);
