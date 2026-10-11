@@ -22,6 +22,10 @@ Client acceptance remains required on TEST: transport a villager from beyond 48 
 
 ## Verification evidence
 
+CodeRabbit review follow-up: exercise the real async visibility section with PacketEvents' actual entity view. A mounted passenger and its support vehicle must both become visible and publish SHOW transitions after entering the 24-block radius; moving beyond 48 blocks must publish HIDE transitions for both. This complements the controller relationship tests and does not replace pending client acceptance.
+
+The follow-up integration regression passes using production engine, tracked entities, view iteration, visibility mutation and transition queue. Only relationship establishment is arranged by the test; the controller path is covered separately. No product changes were needed. CodeRabbit's generic 80-percent docstring warning includes self-describing test methods and is not a functional defect; existing documentation conventions are preserved.
+
 - The first isolated registry test exposed missing PacketEvents test bootstrap; that infrastructure failure is not regression evidence. After installing the test API, the original minecart-only classifier failed the boat assertion (`minecraft:boat` expected true, actual false). The corrected classifier passes all 22 boat/raft types.
 - Focused controller tests passed, including relative movement from beyond 48 blocks into the 24-block radius, teleport back out, dismount, destroy and preserving hidden passenger state.
 - Canonical Java 21 clean build, platform baseline verification, all tests and shaded snapshot build passed: 278 tests, zero failures.
